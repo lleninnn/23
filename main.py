@@ -3,8 +3,8 @@
 import pygame
 import sys
 import os
-import json
-import settings
+import json  # Добавлен импорт json
+import settings  # Исправлено: импортируем как модуль
 from settings import *
 from auth import login, register
 from database import initialize_db, get_games_by_user, create_new_game, get_game_by_id
@@ -19,15 +19,19 @@ if settings.FULLSCREEN:
     info = pygame.display.Info()
     settings.WINDOW_WIDTH, settings.WINDOW_HEIGHT = info.current_w, info.current_h
     screen = pygame.display.set_mode((settings.WINDOW_WIDTH, settings.WINDOW_HEIGHT), pygame.FULLSCREEN)
+    # Масштабирование CELL_SIZE под разрешение экрана
     settings.CELL_SIZE = min(settings.WINDOW_WIDTH, settings.WINDOW_HEIGHT) // settings.BOARD_SIZE
 else:
     screen = pygame.display.set_mode((settings.WINDOW_WIDTH, settings.WINDOW_HEIGHT))
-    settings.CELL_SIZE = settings.CELL_SIZE
+    settings.CELL_SIZE = settings.CELL_SIZE  # Используем значение из settings.py
 
 clock = pygame.time.Clock()
 
 def load_images():
-    # Загружает и масштабирует изображения фигур и элементов интерфейса
+    """
+    Загружает изображения фигур и иконок.
+    :return: Словарь с изображениями.
+    """
     images = {}
     filename_to_key = {
         'king_white.png': 'wK',
@@ -38,10 +42,10 @@ def load_images():
         'pawn_black.png': 'bP',
         'bishop_white.png': 'wB',
         'bishop_black.png': 'bB',
-        'horse_white.png': 'wN',
-        'horse_black.png': 'bN',
-        'tower_white.png': 'wR',
-        'tower_black.png': 'bR',
+        'horse_white.png': 'wN',  # Конь
+        'horse_black.png': 'bN',  # Конь
+        'tower_white.png': 'wR',  # Ладья
+        'tower_black.png': 'bR',  # Ладья
         'eye_open.png': 'eye_open',
         'eye_closed.png': 'eye_closed'
     }
@@ -52,27 +56,45 @@ def load_images():
             if key:
                 try:
                     img = pygame.image.load(path).convert_alpha()
+                    # Масштабирование изображения
                     if filename in ['eye_open.png', 'eye_closed.png']:
-                        img = pygame.transform.scale(img, (30, 30))
+                        eye_size = 30  # Размер иконки глаза
+                        img = pygame.transform.scale(img, (eye_size, eye_size))
                     else:
                         img = pygame.transform.scale(img, (settings.CELL_SIZE, settings.CELL_SIZE))
                     images[key] = img
+                    print(f"Загружено изображение: {filename}")
                 except pygame.error as e:
                     print(f"Ошибка загрузки изображения {path}: {e}")
             else:
                 print(f"Неизвестное изображение: {filename}")
+    required_keys = ['wK', 'bK', 'wP', 'bP', 'wQ', 'bQ', 'wR', 'bR', 'wB', 'bB', 'wN', 'bN', 'eye_open', 'eye_closed']
+    for key in required_keys:
+        if key not in images:
+            print(f"Предупреждение: Изображение для {key} не найдено.")
     return images
 
 images = load_images()
 
 def draw_text(win, text, size, color, x, y):
-    # Рисует текст на экране
+    """
+    Отрисовывает текст на экране.
+    :param win: Объект окна Pygame.
+    :param text: Текст для отрисовки.
+    :param size: Размер текста.
+    :param color: Цвет текста.
+    :param x: Координата X.
+    :param y: Координата Y.
+    """
     font = pygame.font.SysFont('Arial', size)
     text_surface = font.render(text, True, color)
     win.blit(text_surface, (x, y))
 
 def auth_screen():
-    # Экран аутентификации с выбором входа, регистрации или выхода
+    """
+    Отображает экран аутентификации.
+    :return: Имя пользователя, если вход успешен.
+    """
     message = ''
     while True:
         screen.fill(BLACK)
@@ -103,14 +125,17 @@ def auth_screen():
         clock.tick(FPS)
 
 def login_prompt():
-    # Окно входа с вводом имени пользователя и пароля
+    """
+    Отображает экран входа.
+    :return: Кортеж (успех, сообщение, имя пользователя), где успех - True, если вход успешен.
+    """
     username = ''
     password = ''
     input_box = 'username'
     message = ''
     password_visible = False
     eye_icon = images.get('eye_closed')
-    eye_rect = pygame.Rect(settings.WINDOW_WIDTH//2 + 150, 300, 30, 30)
+    eye_rect = pygame.Rect(settings.WINDOW_WIDTH//2 + 150, 300, 30, 30)  # Позиция иконки глаза
 
     while True:
         screen.fill(BLACK)
@@ -126,10 +151,16 @@ def login_prompt():
         draw_text(screen, 'Нажмите TAB для переключения между полями ввода', 25, WHITE, 100, 400)
         draw_text(screen, 'Нажмите ESC для возврата в главное меню', 25, WHITE, 100, 450)
         draw_text(screen, message, 30, RED, 100, 500)
+        # Подсветка активного поля
         if input_box == 'username':
             pygame.draw.rect(screen, BLUE, pygame.Rect(500, 200, 200, 50), 3)
         else:
             pygame.draw.rect(screen, BLUE, pygame.Rect(500, 300, 200, 50), 3)
+        # Рисуем иконку глаза
+        if password_visible:
+            eye_icon = images.get('eye_open')
+        else:
+            eye_icon = images.get('eye_closed')
         if eye_icon:
             screen.blit(eye_icon, eye_rect)
         pygame.display.flip()
@@ -167,14 +198,17 @@ def login_prompt():
         clock.tick(FPS)
 
 def register_prompt():
-    # Окно регистрации с вводом имени пользователя и пароля
+    """
+    Отображает экран регистрации.
+    :return: Кортеж (успех, сообщение), где успех - True, если регистрация успешна.
+    """
     username = ''
     password = ''
     input_box = 'username'
     message = ''
     password_visible = False
     eye_icon = images.get('eye_closed')
-    eye_rect = pygame.Rect(settings.WINDOW_WIDTH//2 + 150, 300, 30, 30)
+    eye_rect = pygame.Rect(settings.WINDOW_WIDTH//2 + 150, 300, 30, 30)  # Позиция иконки глаза
 
     while True:
         screen.fill(BLACK)
@@ -190,10 +224,16 @@ def register_prompt():
         draw_text(screen, 'Нажмите TAB для переключения между полями ввода', 25, WHITE, 100, 400)
         draw_text(screen, 'Нажмите ESC для возврата в главное меню', 25, WHITE, 100, 450)
         draw_text(screen, message, 30, RED, 100, 500)
+        # Подсветка активного поля
         if input_box == 'username':
             pygame.draw.rect(screen, BLUE, pygame.Rect(500, 200, 200, 50), 3)
         else:
             pygame.draw.rect(screen, BLUE, pygame.Rect(500, 300, 200, 50), 3)
+        # Рисуем иконку глаза
+        if password_visible:
+            eye_icon = images.get('eye_open')
+        else:
+            eye_icon = images.get('eye_closed')
         if eye_icon:
             screen.blit(eye_icon, eye_rect)
         pygame.display.flip()
@@ -231,7 +271,11 @@ def register_prompt():
         clock.tick(FPS)
 
 def select_mode(username):
-    # Выбор режима игры: человек против AI, просмотр игр, выход
+    """
+    Отображает экран выбора режима игры.
+    :param username: Имя пользователя.
+    :return: Режим игры ('ai' или None).
+    """
     message = ''
     while True:
         screen.fill(BLACK)
@@ -256,7 +300,10 @@ def select_mode(username):
         clock.tick(FPS)
 
 def view_games(username):
-    # Просмотр текущих игр пользователя
+    """
+    Отображает список текущих игр пользователя.
+    :param username: Имя пользователя.
+    """
     games = get_games_by_user(username, status='in_progress')
     selected_game = None
     while True:
@@ -266,7 +313,7 @@ def view_games(username):
         if not games:
             draw_text(screen, 'Нет текущих партий. Начните новую игру.', 30, WHITE, 50, y_offset)
         else:
-            for index, game in enumerate(games[:10]):
+            for index, game in enumerate(games[:10]):  # Отображаем последние 10 партий
                 game_id, white_player, black_player, moves, result, start_time, end_time, status = game
                 game_info = f"{index+1}. ID: {game_id} | Белые: {white_player} | Черные: {black_player} | Начало: {start_time}"
                 draw_text(screen, game_info, 25, WHITE, 50, y_offset)
@@ -290,15 +337,21 @@ def view_games(username):
         clock.tick(FPS)
 
 def resume_game(game):
-    # Возобновление выбранной игры
+    """
+    Возобновляет игру по её ID.
+    :param game: Кортеж с данными игры.
+    """
     game_id, white_player, black_player, moves, result, start_time, end_time, status = game
     game_instance = Game(white_player=white_player, black_player=black_player, game_id=game_id)
     game_screen_instance(game_instance)
 
 def show_game_details(game):
-    # Отображение деталей игры
+    """
+    Отображает детали игры.
+    :param game: Кортеж с данными игры.
+    """
     game_id, white_player, black_player, moves, result, start_time, end_time, status = game
-    moves_list = json.loads(moves)
+    moves_list = json.loads(moves)  # Преобразование JSON строки обратно в список
     while True:
         screen.fill(BLACK)
         draw_text(screen, f'Партия ID: {game_id}', 40, WHITE, settings.WINDOW_WIDTH//2 - 100, 50)
@@ -328,7 +381,10 @@ def show_game_details(game):
         clock.tick(FPS)
 
 def game_screen_instance(game_instance):
-    # Основной игровой цикл
+    """
+    Отображает экран игры.
+    :param game_instance: Экземпляр класса Game.
+    """
     selected_square = None
     valid_moves = []
     run = True
@@ -351,12 +407,13 @@ def game_screen_instance(game_instance):
                     if selected_square:
                         move = Move(selected_square, (row, col), game_instance.board[selected_square[0]][selected_square[1]], game_instance.board[row][col])
                         if move.is_pawn_promotion:
-                            move.promotion_choice = 'Q'
+                            move.promotion_choice = 'Q'  # Можно добавить выбор фигуры через интерфейс
                         if game_instance.is_move_valid(move):
                             game_instance.make_move(move)
                             selected_square = None
                             valid_moves = []
-                            if game_instance.black_player.lower() == 'ai' and not game_instance.white_to_move and not game_instance.checkmate and not game_instance.stalemate:
+                            # Если игра против ИИ и ход после этого принадлежит ИИ
+                            if isinstance(game_instance.black_player, str) and game_instance.black_player.lower() == 'ai' and not game_instance.white_to_move and not game_instance.checkmate and not game_instance.stalemate:
                                 ai_move = find_best_move(game_instance, depth=settings.AI_DEPTH)
                                 if ai_move:
                                     game_instance.make_move(ai_move)
@@ -376,30 +433,44 @@ def game_screen_instance(game_instance):
             screen.fill(BLACK)
             game_instance.draw(screen, images, selected_square, valid_moves)
         else:
+            # Показать паузу
             screen.fill(GRAY)
             draw_text(screen, 'Пауза', 60, WHITE, settings.WINDOW_WIDTH//2 - 100, settings.WINDOW_HEIGHT//2 - 50)
             draw_text(screen, 'Нажмите S для сохранения и выхода', 30, WHITE, settings.WINDOW_WIDTH//2 - 150, settings.WINDOW_HEIGHT//2 + 20)
             draw_text(screen, 'Нажмите P для продолжения игры', 30, WHITE, settings.WINDOW_WIDTH//2 - 150, settings.WINDOW_HEIGHT//2 + 60)
+
+            # Проверка событий в паузе
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_s:
+                        # Сохранить и выйти в главное меню
                         run = False
                     elif event.key == pygame.K_p:
                         paused = False
 
         pygame.display.flip()
         clock.tick(FPS)
+
         if not paused and (game_instance.checkmate or game_instance.stalemate):
+            # Отображение результата уже происходит в draw_game_state
+            # Добавим задержку перед возвратом в главное меню
             pygame.time.delay(5000)
             run = False
+            # Если игра завершена, обновляем статус
             if game_instance.result:
                 game_instance.save_game_completion()
 
 def game_screen(mode, white_player='White', black_player='AI'):
-    # Запуск игры в выбранном режиме
+    """
+    Отображает экран игры.
+    :param mode: Режим игры ('ai' или другой).
+    :param white_player: Имя пользователя, играющего за белых.
+    :param black_player: Имя пользователя, играющего за чёрных.
+    """
+    # Создание новой игры или загрузка существующей
     if mode == 'ai':
         if black_player.lower() == 'ai':
             game_id = create_new_game(white_player, 'AI')
@@ -410,11 +481,13 @@ def game_screen(mode, white_player='White', black_player='AI'):
     run_game = True
     while run_game:
         game_screen_instance(game_instance)
-        run_game = False
+        run_game = False  # После завершения игры возвращаемся к выбору режима
 
 def main():
-    # Основная функция запуска приложения
-    initialize_db()
+    """
+    Основная функция, запускающая приложение.
+    """
+    initialize_db()  # Инициализация базы данных при запуске приложения
     current_user = auth_screen()
     if current_user:
         mode = select_mode(current_user)
