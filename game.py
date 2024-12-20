@@ -1,16 +1,25 @@
 # game.py
 
 import pygame
-import settings  # Импортируем настройки игры
+import settings  # Исправлено: импортируем как модуль
 from settings import *
 from copy import deepcopy
 from datetime import datetime
 from database import update_game, get_game_by_id
-import json  # Импорт для работы с JSON
+import json  # Добавлен импорт json
 
+# Класс, представляющий ход в игре
 class Move:
     def __init__(self, start_pos, end_pos, piece_moved, piece_captured, is_pawn_promotion=False, promotion_choice='Q'):
-        # Инициализация хода с начальной и конечной позициями, фигурами, участвующими в ходе, и деталями превращения пешки
+        """
+        Инициализирует объект хода.
+        :param start_pos: Начальная позиция хода (строка, столбец).
+        :param end_pos: Конечная позиция хода (строка, столбец).
+        :param piece_moved: Фигура, которая была передвинута.
+        :param piece_captured: Фигура, которая была взята (если есть).
+        :param is_pawn_promotion: True, если это ход пешки на последнюю линию и она превращается.
+        :param promotion_choice: Выбранная фигура для превращения пешки (по умолчанию 'Q' - ферзь).
+        """
         self.start_row, self.start_col = start_pos
         self.end_row, self.end_col = end_pos
         self.piece_moved = piece_moved
@@ -19,7 +28,11 @@ class Move:
         self.promotion_choice = promotion_choice
 
     def __eq__(self, other):
-        # Проверка на равенство двух ходов
+        """
+        Проверяет, равны ли два объекта Move.
+        :param other: Другой объект Move.
+        :return: True, если объекты равны, иначе False.
+        """
         if isinstance(other, Move):
             return (self.start_row == other.start_row and
                     self.start_col == other.start_col and
@@ -32,14 +45,20 @@ class Move:
         return False
 
     def get_chess_notation(self):
-        # Возвращает ход в шахматной нотации
+        """
+        Возвращает шахматную нотацию хода.
+        :return: Строка с шахматной нотацией хода.
+        """
         cols_to_files = {0: 'a', 1: 'b', 2: 'c', 3: 'd',
                         4: 'e', 5: 'f', 6: 'g', 7: 'h'}
         return cols_to_files[self.start_col] + str(8 - self.start_row) + \
                cols_to_files[self.end_col] + str(8 - self.end_row)
 
     def to_dict(self):
-        # Сериализует ход в словарь для сохранения в базу данных
+        """
+        Преобразует объект Move в словарь.
+        :return: Словарь с данными хода.
+        """
         return {
             'start_pos': [self.start_row, self.start_col],
             'end_pos': [self.end_row, self.end_col],
@@ -51,7 +70,11 @@ class Move:
 
     @classmethod
     def from_dict(cls, move_dict):
-        # Десериализует ход из словаря
+        """
+        Создаёт объект Move из словаря.
+        :param move_dict: Словарь с данными хода.
+        :return: Объект Move.
+        """
         return cls(
             start_pos=tuple(move_dict['start_pos']),
             end_pos=tuple(move_dict['end_pos']),
@@ -61,9 +84,15 @@ class Move:
             promotion_choice=move_dict.get('promotion_choice', 'Q')
         )
 
+# Класс, представляющий игру
 class Game:
     def __init__(self, white_player='White', black_player='AI', game_id=None):
-        # Инициализация игры с указанными игроками и идентификатором игры
+        """
+        Инициализирует объект игры.
+        :param white_player: Имя пользователя, играющего за белых.
+        :param black_player: Имя пользователя, играющего за чёрных.
+        :param game_id: ID игры (если игра загружается из базы данных).
+        """
         self.white_player = white_player
         self.black_player = black_player
         self.game_id = game_id
@@ -84,7 +113,10 @@ class Game:
             self.result = None
 
     def create_initial_board(self):
-        # Создает начальную доску для конечного матча: Король и Пешка против Короля и Пешки
+        """
+        Создаёт начальную доску для игры.
+        :return: Двумерный список, представляющий доску.
+        """
         board = [['--' for _ in range(8)] for _ in range(8)]
         board[7][4] = 'wK'  # Белый король на e1
         board[6][0] = 'wP'  # Белая пешка на a2
@@ -93,7 +125,10 @@ class Game:
         return board
 
     def load_game(self, game_id):
-        # Загружает игру из базы данных по game_id
+        """
+        Загружает игру из базы данных по её ID.
+        :param game_id: ID игры.
+        """
         game = get_game_by_id(game_id)
         if game:
             _, white_player, black_player, moves, result, start_time, end_time, status = game
@@ -123,7 +158,9 @@ class Game:
             self.result = None
 
     def reconstruct_board(self):
-        # Восстанавливает доску из журнала ходов
+        """
+        Восстанавливает доску на основе списка ходов.
+        """
         self.board = self.create_initial_board()
         for move in self.move_log:
             self.board[move.start_row][move.start_col] = '--'
@@ -132,7 +169,11 @@ class Game:
                 self.board[move.end_row][move.end_col] = move.piece_moved[0] + move.promotion_choice
 
     def make_move(self, move, update_state=True):
-        # Выполняет ход и обновляет состояние игры
+        """
+        Выполняет ход на доске.
+        :param move: Объект Move, представляющий ход.
+        :param update_state: True, если нужно обновлять состояние игры (например, проверять шах и мат).
+        """
         self.board[move.start_row][move.start_col] = '--'
         self.board[move.end_row][move.end_col] = move.piece_moved
         self.move_log.append(move)
@@ -144,7 +185,9 @@ class Game:
             self.save_current_game()
 
     def undo_move(self):
-        # Отменяет последний ход
+        """
+        Отменяет последний ход.
+        """
         if self.move_log:
             move = self.move_log.pop()
             self.board[move.start_row][move.start_col] = move.piece_moved
@@ -154,7 +197,10 @@ class Game:
             self.save_current_game()
 
     def get_valid_moves(self):
-        # Получает все допустимые ходы, исключая те, которые оставляют короля под шахом
+        """
+        Возвращает список допустимых ходов для текущего игрока.
+        :return: Список объектов Move.
+        """
         moves = self.get_all_possible_moves()
         valid_moves = []
         for move in moves:
@@ -165,7 +211,10 @@ class Game:
         return valid_moves
 
     def get_all_possible_moves(self):
-        # Генерирует все возможные ходы без учета шаха
+        """
+        Возвращает список всех возможных ходов для текущего игрока.
+        :return: Список объектов Move.
+        """
         moves = []
         for r in range(8):
             for c in range(8):
@@ -192,7 +241,12 @@ class Game:
         return moves
 
     def get_king_moves(self, r, c, moves):
-        # Генерирует все возможные ходы для короля
+        """
+        Добавляет возможные ходы короля в список ходов.
+        :param r: Строка, где находится король.
+        :param c: Столбец, где находится король.
+        :param moves: Список ходов.
+        """
         directions = [(-1, -1), (-1, 0), (-1, 1),
                       (0, -1),          (0, 1),
                       (1, -1),  (1, 0), (1, 1)]
@@ -205,40 +259,47 @@ class Game:
                     moves.append(Move((r, c), (end_row, end_col), self.board[r][c], target))
 
     def get_pawn_moves(self, r, c, moves):
-        # Генерирует все возможные ходы для пешки
-        piece = self.board[r][c]
-        direction = -1 if piece[0] == 'w' else 1
-        start_row = 6 if piece[0] == 'w' else 1
-        enemy_color = 'b' if piece[0] == 'w' else 'w'
+        """
+        Добавляет возможные ходы пешки в список ходов.
+        :param r: Строка, где находится пешка.
+        :param c: Столбец, где находится пешка.
+        :param moves: Список ходов.
+        """
+        direction = -1 if self.white_to_move else 1
+        start_row = 6 if self.white_to_move else 1
+        enemy_color = 'b' if self.white_to_move else 'w'
 
-        end_row = r + direction
-        if 0 <= end_row < 8:
-            if self.board[end_row][c] == '--':
-                if (piece[0] == 'w' and end_row == 0) or (piece[0] == 'b' and end_row == 7):
-                    moves.append(Move((r, c), (end_row, c), piece, '--', is_pawn_promotion=True))
-                else:
-                    moves.append(Move((r, c), (end_row, c), piece, '--'))
-                if r == start_row:
-                    end_row2 = r + 2 * direction
-                    if 0 <= end_row2 < 8 and self.board[end_row2][c] == '--':
-                        moves.append(Move((r, c), (end_row2, c), piece, '--'))
-            for dc in [-1, 1]:
-                end_col = c + dc
-                if 0 <= end_col < 8 and 0 <= end_row < 8:
-                    target = self.board[end_row][end_col]
-                    if target != '--' and target[0] == enemy_color:
-                        if (piece[0] == 'w' and end_row == 0) or (piece[0] == 'b' and end_row == 7):
-                            moves.append(Move((r, c), (end_row, end_col), piece, target, is_pawn_promotion=True))
-                        else:
-                            moves.append(Move((r, c), (end_row, end_col), piece, target))
+        # Пешка движется вперёд на 1 клетку
+        if self.board[r + direction][c] == '--':
+            moves.append(Move((r, c), (r + direction, c), self.board[r][c], '--'))
+            # Пешка может пойти на 2 клетки из начальной позиции
+            if r == start_row and self.board[r + 2 * direction][c] == '--':
+                moves.append(Move((r, c), (r + 2 * direction, c), self.board[r][c], '--'))
+
+        # Пешка бьёт по диагонали, но **НЕ** атакует короля
+        for dc in [-1, 1]:
+            if 0 <= c + dc < 8 and 0 <= r + direction < 8:
+                piece_at_target = self.board[r + direction][c + dc]
+                if piece_at_target != '--' and piece_at_target[0] == enemy_color and piece_at_target[1] != 'K':  # НЕ бьёт короля
+                    moves.append(Move((r, c), (r + direction, c + dc), self.board[r][c], piece_at_target))
 
     def get_queen_moves(self, r, c, moves):
-        # Генерирует все возможные ходы для ферзя
+        """
+        Добавляет возможные ходы ферзя в список ходов.
+        :param r: Строка, где находится ферзь.
+        :param c: Столбец, где находится ферзь.
+        :param moves: Список ходов.
+        """
         self.get_rook_moves(r, c, moves)
         self.get_bishop_moves(r, c, moves)
 
     def get_rook_moves(self, r, c, moves):
-        # Генерирует все возможные ходы для ладьи
+        """
+        Добавляет возможные ходы ладьи в список ходов.
+        :param r: Строка, где находится ладья.
+        :param c: Столбец, где находится ладья.
+        :param moves: Список ходов.
+        """
         directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]
         ally_color = 'w' if self.white_to_move else 'b'
         for dr, dc in directions:
@@ -255,7 +316,12 @@ class Game:
                 end_col += dc
 
     def get_bishop_moves(self, r, c, moves):
-        # Генерирует все возможные ходы для слона
+        """
+        Добавляет возможные ходы слона в список ходов.
+        :param r: Строка, где находится слон.
+        :param c: Столбец, где находится слон.
+        :param moves: Список ходов.
+        """
         directions = [(-1, -1), (-1, 1), (1, -1), (1, 1)]
         ally_color = 'w' if self.white_to_move else 'b'
         for dr, dc in directions:
@@ -272,7 +338,12 @@ class Game:
                 end_col += dc
 
     def get_knight_moves(self, r, c, moves):
-        # Генерирует все возможные ходы для коня
+        """
+        Добавляет возможные ходы коня в список ходов.
+        :param r: Строка, где находится конь.
+        :param c: Столбец, где находится конь.
+        :param moves: Список ходов.
+        """
         knight_moves = [(-2, -1), (-1, -2), (-2, 1), (-1, 2),
                        (1, -2), (2, -1), (1, 2), (2, 1)]
         ally_color = 'w' if self.white_to_move else 'b'
@@ -284,7 +355,11 @@ class Game:
                     moves.append(Move((r, c), (end_row, end_col), self.board[r][c], target))
 
     def in_check(self, white):
-        # Проверяет, находится ли король под шахом
+        """
+        Проверяет, находится ли король под шахом.
+        :param white: True, если проверяем для белых, иначе False.
+        :return: True, если король под шахом, иначе False.
+        """
         king_pos = None
         ally_color = 'w' if white else 'b'
         enemy_color = 'b' if white else 'w'
@@ -330,7 +405,12 @@ class Game:
         return False
 
     def is_square_attacked_by_pawn(self, king_pos, attacker_pos):
-        # Проверяет, атакует ли пешка клетку, где находится король
+        """
+        Проверяет, атакует ли пешка данную клетку.
+        :param king_pos: Позиция клетки, которую проверяем.
+        :param attacker_pos: Позиция пешки.
+        :return: True, если пешка атакует клетку, иначе False.
+        """
         r, c = attacker_pos
         king_r, king_c = king_pos
         piece = self.board[r][c]
@@ -338,32 +418,61 @@ class Game:
         return (king_r == r + direction and abs(king_c - c) == 1)
 
     def is_square_attacked_by_knight(self, king_pos, attacker_pos):
-        # Проверяет, атакует ли конь клетку, где находится король
-        r, c = attacker_pos
-        king_r, king_c = king_pos
+        """
+        Проверяет, атакует ли конь данную клетку.
+        :param king_pos: Позиция клетки, которую проверяем.
+        :param attacker_pos: Позиция коня.
+        :return: True, если конь атакует клетку, иначе False.
+        """
         knight_moves = [(-2, -1), (-1, -2), (-2, 1), (-1, 2),
                        (1, -2), (2, -1), (1, 2), (2, 1)]
+        r, c = attacker_pos
+        king_r, king_c = king_pos
         for dr, dc in knight_moves:
             if (r + dr, c + dc) == king_pos:
                 return True
         return False
 
     def is_square_attacked_by_bishop(self, king_pos, attacker_pos):
-        # Проверяет, атакует ли слон клетку, где находится король
-        return self.is_square_attacked_along_directions(king_pos, attacker_pos, [(-1, -1), (-1, 1), (1, -1), (1, 1)])
+        """
+        Проверяет, атакует ли слон данную клетку.
+        :param king_pos: Позиция клетки, которую проверяем.
+        :param attacker_pos: Позиция слона.
+        :return: True, если слон атакует клетку, иначе False.
+        """
+        directions = [(-1, -1), (-1, 1), (1, -1), (1, 1)]
+        return self.is_square_attacked_along_directions(king_pos, attacker_pos, directions)
 
     def is_square_attacked_by_rook(self, king_pos, attacker_pos):
-        # Проверяет, атакует ли ладья клетку, где находится король
-        return self.is_square_attacked_along_directions(king_pos, attacker_pos, [(-1, 0), (1, 0), (0, -1), (0, 1)])
+        """
+        Проверяет, атакует ли ладья данную клетку.
+        :param king_pos: Позиция клетки, которую проверяем.
+        :param attacker_pos: Позиция ладьи.
+        :return: True, если ладья атакует клетку, иначе False.
+        """
+        directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]
+        return self.is_square_attacked_along_directions(king_pos, attacker_pos, directions)
 
     def is_square_attacked_by_queen(self, king_pos, attacker_pos):
-        # Проверяет, атакует ли ферзь клетку, где находится король
-        return self.is_square_attacked_along_directions(king_pos, attacker_pos, [(-1, -1), (-1, 0), (-1, 1),
+        """
+        Проверяет, атакует ли ферзь данную клетку.
+        :param king_pos: Позиция клетки, которую проверяем.
+        :param attacker_pos: Позиция ферзя.
+        :return: True, если ферзь атакует клетку, иначе False.
+        """
+        directions = [(-1, -1), (-1, 0), (-1, 1),
                       (0, -1),          (0, 1),
-                      (1, -1),  (1, 0), (1, 1)])
+                      (1, -1),  (1, 0), (1, 1)]
+        return self.is_square_attacked_along_directions(king_pos, attacker_pos, directions)
 
     def is_square_attacked_along_directions(self, king_pos, attacker_pos, directions):
-        # Проверяет, атакует ли фигура по заданным направлениям клетку, где находится король
+        """
+        Проверяет, атакует ли фигура данную клетку вдоль заданных направлений.
+        :param king_pos: Позиция клетки, которую проверяем.
+        :param attacker_pos: Позиция фигуры.
+        :param directions: Список направлений.
+        :return: True, если фигура атакует клетку, иначе False.
+        """
         r, c = attacker_pos
         king_r, king_c = king_pos
         for dr, dc in directions:
@@ -379,7 +488,9 @@ class Game:
         return False
 
     def check_game_state(self):
-        # Проверяет текущее состояние игры: мат, пат и т.д.
+        """
+        Проверяет текущее состояние игры (шах, мат, пат).
+        """
         if self.in_check(self.white_to_move):
             if not self.get_valid_moves():
                 self.checkmate = True
@@ -402,7 +513,10 @@ class Game:
                 self.checkmate = False
 
     def update_game_status(self, status):
-        # Обновляет статус игры в базе данных
+        """
+        Обновляет статус игры в базе данных.
+        :param status: Новый статус игры ('in_progress' или 'completed').
+        """
         if self.game_id:
             update_game(
                 game_id=self.game_id,
@@ -413,7 +527,9 @@ class Game:
             )
 
     def save_current_game(self):
-        # Сохраняет текущее состояние игры в базе данных
+        """
+        Сохраняет текущее состояние игры в базе данных.
+        """
         if self.game_id:
             update_game(
                 game_id=self.game_id,
@@ -424,7 +540,9 @@ class Game:
             )
 
     def save_game_completion(self):
-        # Сохраняет завершение игры и экспортирует партию в PGN
+        """
+        Сохраняет завершённую игру в базе данных.
+        """
         if self.game_id and self.result:
             update_game(
                 game_id=self.game_id,
@@ -433,10 +551,13 @@ class Game:
                 end_time=self.end_time,
                 status='completed'
             )
+            # Экспорт в PGN
             self.export_pgn()
 
     def export_pgn(self):
-        # Экспортирует партию в формат PGN
+        """
+        Экспортирует игру в формат PGN.
+        """
         if not self.game_id:
             return
         pgn_content = f"[Event \"Chess Endgame\"]\n"
@@ -453,8 +574,8 @@ class Game:
             white_move = self.move_log[i].get_chess_notation()
             black_move = self.move_log[i+1].get_chess_notation() if i+1 < len(self.move_log) else ''
             move_text += f"{move_number}. {white_move} {black_move} "
-        if self.result:
-            move_text += self.result
+
+        move_text += self.result
         pgn_content += move_text
 
         # Сохранение в файл PGN
@@ -463,13 +584,24 @@ class Game:
             f.write(pgn_content)
 
     def draw(self, win, images, selected_square=None, valid_moves=None):
-        # Отрисовывает доску, фигуры и состояние игры на экране
+        """
+        Отрисовывает текущее состояние игры.
+        :param win: Объект окна Pygame.
+        :param images: Словарь с изображениями фигур.
+        :param selected_square: Выбранная клетка (если есть).
+        :param valid_moves: Список допустимых ходов для выбранной фигуры.
+        """
         self.draw_board(win, selected_square, valid_moves)
         self.draw_pieces(win, images)
         self.draw_game_state(win)
 
     def draw_board(self, win, selected_square, valid_moves):
-        # Отрисовывает доску с выделением выбранной клетки и возможных ходов
+        """
+        Отрисовывает доску.
+        :param win: Объект окна Pygame.
+        :param selected_square: Выбранная клетка (если есть).
+        :param valid_moves: Список допустимых ходов для выбранной фигуры.
+        """
         colors = [WHITE, GRAY]
         for r in range(8):
             for c in range(8):
@@ -484,7 +616,11 @@ class Game:
                             pygame.draw.circle(win, GREEN, center, 10)
 
     def draw_pieces(self, win, images):
-        # Отрисовывает фигуры на доске
+        """
+        Отрисовывает фигуры на доске.
+        :param win: Объект окна Pygame.
+        :param images: Словарь с изображениями фигур.
+        """
         for r in range(8):
             for c in range(8):
                 piece = self.board[r][c]
@@ -496,7 +632,10 @@ class Game:
                         print(f"Изображение для {piece} не найдено.")
 
     def draw_game_state(self, win):
-        # Отрисовывает состояние игры: мат, пат и т.д.
+        """
+        Отрисовывает состояние игры (шах, мат, пат).
+        :param win: Объект окна Pygame.
+        """
         if self.checkmate:
             font = pygame.font.SysFont('Arial', 36)
             text = font.render('Шах и мат!', True, RED)
@@ -511,11 +650,20 @@ class Game:
             win.blit(text, (10, 10))
 
     def is_move_valid(self, move):
-        # Проверяет, является ли ход допустимым
+        """
+        Проверяет, является ли ход допустимым.
+        :param move: Объект Move, представляющий ход.
+        :return: True, если ход допустим, иначе False.
+        """
         return move in self.get_valid_moves()
 
     def get_piece_moves(self, r, c):
-        # Получает все допустимые ходы для фигуры на заданной позиции
+        """
+        Возвращает список допустимых ходов для фигуры на заданной позиции.
+        :param r: Строка, где находится фигура.
+        :param c: Столбец, где находится фигура.
+        :return: Список объектов Move.
+        """
         piece = self.board[r][c]
         if piece == '--':
             return []
