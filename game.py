@@ -248,15 +248,19 @@ class Game:
         :param moves: Список ходов.
         """
         directions = [(-1, -1), (-1, 0), (-1, 1),
-                      (0, -1),          (0, 1),
-                      (1, -1),  (1, 0), (1, 1)]
+                      (0, -1), (0, 1),
+                      (1, -1), (1, 0), (1, 1)]
         ally_color = 'w' if self.white_to_move else 'b'
+        enemy_color = 'b' if self.white_to_move else 'w'
+
         for dr, dc in directions:
             end_row, end_col = r + dr, c + dc
             if 0 <= end_row < 8 and 0 <= end_col < 8:
                 target = self.board[end_row][end_col]
                 if target == '--' or target[0] != ally_color:
-                    moves.append(Move((r, c), (end_row, end_col), self.board[r][c], target))
+                    # Проверяем, что клетка не находится под ударом пешки противника
+                    if not self.is_square_attacked_by_pawn((end_row, end_col), enemy_color):
+                        moves.append(Move((r, c), (end_row, end_col), self.board[r][c], target))
 
     def get_pawn_moves(self, r, c, moves):
         """
@@ -364,6 +368,7 @@ class Game:
         ally_color = 'w' if white else 'b'
         enemy_color = 'b' if white else 'w'
 
+        # Находим позицию короля
         for r in range(8):
             for c in range(8):
                 piece = self.board[r][c]
@@ -378,6 +383,11 @@ class Game:
         if not king_pos:
             return False
 
+        # Проверяем, атакуют ли короля пешки противника
+        if self.is_square_attacked_by_pawn(king_pos, enemy_color):
+            return True
+
+        # Проверяем атаки других фигур
         for r in range(8):
             for c in range(8):
                 piece = self.board[r][c]
@@ -386,9 +396,6 @@ class Game:
                 piece_type = piece[1]
                 if piece_type == 'K':
                     if max(abs(king_pos[0] - r), abs(king_pos[1] - c)) == 1:
-                        return True
-                elif piece_type == 'P':
-                    if self.is_square_attacked_by_pawn(king_pos, (r, c)):
                         return True
                 elif piece_type == 'N':
                     if self.is_square_attacked_by_knight(king_pos, (r, c)):
@@ -404,18 +411,21 @@ class Game:
                         return True
         return False
 
-    def is_square_attacked_by_pawn(self, king_pos, attacker_pos):
+    def is_square_attacked_by_pawn(self, square, enemy_color):
         """
-        Проверяет, атакует ли пешка данную клетку.
-        :param king_pos: Позиция клетки, которую проверяем.
-        :param attacker_pos: Позиция пешки.
+        Проверяет, атакует ли пешка противника данную клетку.
+        :param square: Позиция клетки (строка, столбец).
+        :param enemy_color: Цвет пешки противника ('w' или 'b').
         :return: True, если пешка атакует клетку, иначе False.
         """
-        r, c = attacker_pos
-        king_r, king_c = king_pos
-        piece = self.board[r][c]
-        direction = 1 if piece[0] == 'w' else -1
-        return (king_r == r + direction and abs(king_c - c) == 1)
+        r, c = square
+        direction = 1 if enemy_color == 'w' else -1  # Направление атаки пешки
+        for dc in [-1, 1]:  # Пешка атакует по диагонали
+            if 0 <= r + direction < 8 and 0 <= c + dc < 8:
+                piece = self.board[r + direction][c + dc]
+                if piece == enemy_color + 'P':
+                    return True
+        return False
 
     def is_square_attacked_by_knight(self, king_pos, attacker_pos):
         """
@@ -488,9 +498,7 @@ class Game:
         return False
 
     def check_game_state(self):
-        """
-        Проверяет текущее состояние игры (шах, мат, пат).
-        """
+        # Проверка на шах и мат
         if self.in_check(self.white_to_move):
             if not self.get_valid_moves():
                 self.checkmate = True
@@ -502,6 +510,7 @@ class Game:
                 self.checkmate = False
                 self.stalemate = False
         else:
+            # Проверка на пат
             if not self.get_valid_moves():
                 self.stalemate = True
                 self.checkmate = False
@@ -509,8 +518,25 @@ class Game:
                 self.end_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 self.update_game_status('completed')
             else:
-                self.stalemate = False
-                self.checkmate = False
+                # Проверка, остались ли на доске только короли
+                only_kings_left = True
+                for row in self.board:
+                    for piece in row:
+                        if piece != '--' and piece[1] != 'K':  # Если есть фигура, которая не король
+                            only_kings_left = False
+                            break
+                    if not only_kings_left:
+                        break
+
+                if only_kings_left:
+                    self.stalemate = True
+                    self.checkmate = False
+                    self.result = 'Draw by insufficient material (only kings left)'
+                    self.end_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    self.update_game_status('completed')
+                else:
+                    self.stalemate = False
+                    self.checkmate = False
 
     def update_game_status(self, status):
         """
