@@ -5,21 +5,20 @@ import os
 from datetime import datetime
 import json
 
-DATABASE_FILE = 'chess.db'
+DATABASE_FILE = 'chess.db'  # Имя файла базы данных
 
-# Функция для получения соединения с базой данных
 def get_connection():
     """
-    Возвращает соединение с базой данных.
+    Устанавливает соединение с базой данных.
+    
     :return: Объект соединения с базой данных.
     """
     conn = sqlite3.connect(DATABASE_FILE)
     return conn
 
-# Функция для инициализации базы данных
 def initialize_db():
     """
-    Инициализирует базу данных, создавая таблицы пользователей и игр, если они ещё не существуют.
+    Инициализирует базу данных, создавая необходимые таблицы, если они не существуют.
     """
     conn = get_connection()
     cursor = conn.cursor()
@@ -51,13 +50,13 @@ def initialize_db():
     conn.commit()
     conn.close()
 
-# Функция для сохранения пользователя в базе данных
 def save_user(username, password_hash):
     """
     Сохраняет нового пользователя в базе данных.
+    
     :param username: Имя пользователя.
     :param password_hash: Хеш пароля пользователя.
-    :return: Кортеж (успех, сообщение), где успех - True, если сохранение прошло успешно, иначе False.
+    :return: Кортеж (успех, сообщение).
     """
     conn = get_connection()
     cursor = conn.cursor()
@@ -65,15 +64,15 @@ def save_user(username, password_hash):
         cursor.execute('INSERT INTO users (username, password_hash) VALUES (?, ?)', (username, password_hash))
         conn.commit()
         return True, 'Пользователь успешно зарегистрирован.'
-    except sqlite3.IntegrityError:
+    except sqlite3.IntegrityError:  # Обработка ошибки дублирования пользователя
         return False, 'Пользователь уже существует.'
     finally:
         conn.close()
 
-# Функция для получения пользователя из базы данных
 def get_user(username):
     """
-    Получает пользователя из базы данных по имени пользователя.
+    Получает информацию о пользователе из базы данных.
+    
     :param username: Имя пользователя.
     :return: Кортеж с данными пользователя или None, если пользователь не найден.
     """
@@ -84,40 +83,40 @@ def get_user(username):
     conn.close()
     return user
 
-# Функция для создания новой игры
 def create_new_game(white_player, black_player):
     """
-    Создаёт новую игру в базе данных.
-    :param white_player: Имя пользователя, играющего за белых.
-    :param black_player: Имя пользователя, играющего за чёрных.
-    :return: ID новой игры.
+    Создает новую игру в базе данных.
+    
+    :param white_player: Имя игрока за белых.
+    :param black_player: Имя игрока за черных.
+    :return: ID созданной игры.
     """
     conn = get_connection()
     cursor = conn.cursor()
-    start_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    moves_json = json.dumps([])
+    start_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')  # Время начала игры
+    moves_json = json.dumps([])  # Инициализация пустого списка ходов
     cursor.execute('''
         INSERT INTO games (white_player, black_player, moves, result, start_time, end_time, status)
         VALUES (?, ?, ?, ?, ?, ?, ?)
     ''', (white_player, black_player, moves_json, None, start_time, None, 'in_progress'))
-    game_id = cursor.lastrowid
+    game_id = cursor.lastrowid  # Получение ID созданной игры
     conn.commit()
     conn.close()
     return game_id
 
-# Функция для обновления игры в базе данных
 def update_game(game_id, moves, result=None, end_time=None, status='in_progress'):
     """
     Обновляет информацию о игре в базе данных.
+    
     :param game_id: ID игры.
     :param moves: Список ходов в формате JSON.
-    :param result: Результат игры (например, 'White wins', 'Black wins', 'Draw').
+    :param result: Результат игры.
     :param end_time: Время окончания игры.
     :param status: Статус игры ('in_progress' или 'completed').
     """
     conn = get_connection()
     cursor = conn.cursor()
-    moves_json = json.dumps(moves)
+    moves_json = json.dumps(moves)  # Сериализация ходов в JSON
     cursor.execute('''
         UPDATE games
         SET moves = ?, result = ?, end_time = ?, status = ?
@@ -126,13 +125,13 @@ def update_game(game_id, moves, result=None, end_time=None, status='in_progress'
     conn.commit()
     conn.close()
 
-# Функция для получения списка игр пользователя
 def get_games_by_user(username, status=None):
     """
-    Получает список игр пользователя по его имени.
+    Получает список игр для указанного пользователя.
+    
     :param username: Имя пользователя.
-    :param status: Статус игры ('in_progress' или 'completed'). Если None, возвращает все игры.
-    :return: Список игр пользователя.
+    :param status: Статус игры ('in_progress' или 'completed').
+    :return: Список игр.
     """
     conn = get_connection()
     cursor = conn.cursor()
@@ -152,10 +151,10 @@ def get_games_by_user(username, status=None):
     conn.close()
     return games
 
-# Функция для получения игры по её ID
 def get_game_by_id(game_id):
     """
-    Получает игру по её ID.
+    Получает информацию о игре по её ID.
+    
     :param game_id: ID игры.
     :return: Кортеж с данными игры или None, если игра не найдена.
     """
