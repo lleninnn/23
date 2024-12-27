@@ -29,7 +29,8 @@ clock = pygame.time.Clock()
 
 def load_images():
     """
-    Загружает изображения фигур и иконок.
+    Загружает изображения фигур и других элементов интерфейса.
+    
     :return: Словарь с изображениями.
     """
     images = {}
@@ -79,12 +80,13 @@ images = load_images()
 def draw_text(win, text, size, color, x, y):
     """
     Отрисовывает текст на экране.
-    :param win: Объект окна Pygame.
+    
+    :param win: Окно Pygame, в котором происходит отрисовка.
     :param text: Текст для отрисовки.
-    :param size: Размер текста.
+    :param size: Размер шрифта.
     :param color: Цвет текста.
-    :param x: Координата X.
-    :param y: Координата Y.
+    :param x: Координата X для отрисовки текста.
+    :param y: Координата Y для отрисовки текста.
     """
     font = pygame.font.SysFont('Arial', size)
     text_surface = font.render(text, True, color)
@@ -92,8 +94,9 @@ def draw_text(win, text, size, color, x, y):
 
 def auth_screen():
     """
-    Отображает экран аутентификации.
-    :return: Имя пользователя, если вход успешен.
+    Отображает экран аутентификации (вход, регистрация, выход).
+    
+    :return: Имя пользователя, если вход успешен, иначе None.
     """
     message = ''
     while True:
@@ -126,8 +129,9 @@ def auth_screen():
 
 def login_prompt():
     """
-    Отображает экран входа.
-    :return: Кортеж (успех, сообщение, имя пользователя), где успех - True, если вход успешен.
+    Отображает экран входа в систему.
+    
+    :return: Кортеж (успех, сообщение, имя пользователя).
     """
     username = ''
     password = ''
@@ -199,8 +203,9 @@ def login_prompt():
 
 def register_prompt():
     """
-    Отображает экран регистрации.
-    :return: Кортеж (успех, сообщение), где успех - True, если регистрация успешна.
+    Отображает экран регистрации нового пользователя.
+    
+    :return: Кортеж (успех, сообщение).
     """
     username = ''
     password = ''
@@ -273,8 +278,9 @@ def register_prompt():
 def select_mode(username):
     """
     Отображает экран выбора режима игры.
+    
     :param username: Имя пользователя.
-    :return: Режим игры ('ai' или None).
+    :return: Выбранный режим игры.
     """
     message = ''
     while True:
@@ -302,6 +308,7 @@ def select_mode(username):
 def view_games(username):
     """
     Отображает список текущих игр пользователя.
+    
     :param username: Имя пользователя.
     """
     games = get_games_by_user(username, status='in_progress')
@@ -338,8 +345,9 @@ def view_games(username):
 
 def resume_game(game):
     """
-    Возобновляет игру по её ID.
-    :param game: Кортеж с данными игры.
+    Возобновляет выбранную игру.
+    
+    :param game: Данные игры (кортеж из базы данных).
     """
     game_id, white_player, black_player, moves, result, start_time, end_time, status = game
     game_instance = Game(white_player=white_player, black_player=black_player, game_id=game_id)
@@ -347,8 +355,9 @@ def resume_game(game):
 
 def show_game_details(game):
     """
-    Отображает детали игры.
-    :param game: Кортеж с данными игры.
+    Отображает детали выбранной игры (ходы, результат, время).
+    
+    :param game: Данные игры (кортеж из базы данных).
     """
     game_id, white_player, black_player, moves, result, start_time, end_time, status = game
     moves_list = json.loads(moves)  # Преобразование JSON строки обратно в список
@@ -382,8 +391,9 @@ def show_game_details(game):
 
 def game_screen_instance(game_instance):
     """
-    Отображает экран игры.
-    :param game_instance: Экземпляр класса Game.
+    Основной игровой экран, где происходит управление игрой.
+    
+    :param game_instance: Объект игры.
     """
     selected_square = None
     valid_moves = []
@@ -405,19 +415,28 @@ def game_screen_instance(game_instance):
                     row, col = pos[1] // settings.CELL_SIZE, pos[0] // settings.CELL_SIZE
                     piece = game_instance.board[row][col]
                     if selected_square:
-                        move = Move(selected_square, (row, col), game_instance.board[selected_square[0]][selected_square[1]], game_instance.board[row][col])
-                        if move.is_pawn_promotion:
-                            move.promotion_choice = 'Q'  # Можно добавить выбор фигуры через интерфейс
-                        if game_instance.is_move_valid(move):
-                            game_instance.make_move(move)
+                        # Ищем соответствующий объект Move из valid_moves
+                        selected_move = None
+                        for m in valid_moves:
+                            if m.end_row == row and m.end_col == col:
+                                selected_move = m
+                                break
+
+                        if selected_move and game_instance.is_move_valid(selected_move):
+                            game_instance.make_move(selected_move)
                             selected_square = None
                             valid_moves = []
                             # Если игра против ИИ и ход после этого принадлежит ИИ
-                            if isinstance(game_instance.black_player, str) and game_instance.black_player.lower() == 'ai' and not game_instance.white_to_move and not game_instance.checkmate and not game_instance.stalemate:
+                            if (isinstance(game_instance.black_player, str) and
+                                game_instance.black_player.lower() == 'ai' and
+                                not game_instance.white_to_move and
+                                not game_instance.checkmate and
+                                not game_instance.stalemate):
                                 ai_move = find_best_move(game_instance, depth=settings.AI_DEPTH)
                                 if ai_move:
                                     game_instance.make_move(ai_move)
                         else:
+                            # Если ход некорректен, сбрасываем выбор
                             if piece != '--' and ((game_instance.white_to_move and piece[0] == 'w') or (not game_instance.white_to_move and piece[0] == 'b')):
                                 selected_square = (row, col)
                                 valid_moves = game_instance.get_piece_moves(row, col)
@@ -465,10 +484,11 @@ def game_screen_instance(game_instance):
 
 def game_screen(mode, white_player='White', black_player='AI'):
     """
-    Отображает экран игры.
-    :param mode: Режим игры ('ai' или другой).
-    :param white_player: Имя пользователя, играющего за белых.
-    :param black_player: Имя пользователя, играющего за чёрных.
+    Создает новую игру или загружает существующую и запускает игровой экран.
+    
+    :param mode: Режим игры ('ai' для игры против ИИ).
+    :param white_player: Имя игрока за белых.
+    :param black_player: Имя игрока за черных.
     """
     # Создание новой игры или загрузка существующей
     if mode == 'ai':
