@@ -81,7 +81,7 @@ def draw_text(win, text, size, color, x, y):
     """
     Отрисовывает текст на экране.
     
-    :param win: Окно Pygame, в котором происходит отрисовка.
+    :param win: Окно PyGame для отрисовки.
     :param text: Текст для отрисовки.
     :param size: Размер шрифта.
     :param color: Цвет текста.
@@ -94,9 +94,9 @@ def draw_text(win, text, size, color, x, y):
 
 def auth_screen():
     """
-    Отображает экран аутентификации (вход, регистрация, выход).
+    Отображает экран аутентификации (вход/регистрация).
     
-    :return: Имя пользователя, если вход успешен, иначе None.
+    :return: Имя пользователя, если аутентификация успешна.
     """
     message = ''
     while True:
@@ -307,7 +307,7 @@ def select_mode(username):
 
 def view_games(username):
     """
-    Отображает список текущих игр пользователя.
+    Отображает список текущих партий пользователя.
     
     :param username: Имя пользователя.
     """
@@ -345,9 +345,9 @@ def view_games(username):
 
 def resume_game(game):
     """
-    Возобновляет выбранную игру.
+    Возобновляет выбранную партию.
     
-    :param game: Данные игры (кортеж из базы данных).
+    :param game: Данные партии.
     """
     game_id, white_player, black_player, moves, result, start_time, end_time, status = game
     game_instance = Game(white_player=white_player, black_player=black_player, game_id=game_id)
@@ -355,9 +355,9 @@ def resume_game(game):
 
 def show_game_details(game):
     """
-    Отображает детали выбранной игры (ходы, результат, время).
+    Отображает детали выбранной партии.
     
-    :param game: Данные игры (кортеж из базы данных).
+    :param game: Данные партии.
     """
     game_id, white_player, black_player, moves, result, start_time, end_time, status = game
     moves_list = json.loads(moves)  # Преобразование JSON строки обратно в список
@@ -391,7 +391,7 @@ def show_game_details(game):
 
 def game_screen_instance(game_instance):
     """
-    Основной игровой экран, где происходит управление игрой.
+    Основной игровой экран, где происходит управление партией.
     
     :param game_instance: Объект игры.
     """
@@ -484,11 +484,11 @@ def game_screen_instance(game_instance):
 
 def game_screen(mode, white_player='White', black_player='AI'):
     """
-    Создает новую игру или загружает существующую и запускает игровой экран.
+    Создает новую партию или загружает существующую и запускает игровой экран.
     
-    :param mode: Режим игры ('ai' для игры против ИИ).
-    :param white_player: Имя игрока за белых.
-    :param black_player: Имя игрока за черных.
+    :param mode: Режим игры.
+    :param white_player: Имя игрока, играющего белыми.
+    :param black_player: Имя игрока, играющего черными.
     """
     # Создание новой игры или загрузка существующей
     if mode == 'ai':
